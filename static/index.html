@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🌟 מטלות הבית</title>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<!-- SCREENSAVER -->
+<div id="ss" onclick="hideSS()">
+  <div class="ss-stars" id="ss-stars"></div>
+  <div class="ss-txt">🌟 מי רוצה משימה? 🌟<br><span style="font-size:18px;opacity:.85">לחץ להמשך</span></div>
+</div>
+
+<!-- BIRTHDAY OVERLAY -->
+<div class="overlay" id="bdayOverlay">
+  <div class="bday-modal">
+    <div class="bday-av" id="bdayAv"><span>🎂</span></div>
+    <div class="bday-title" id="bdayTitle">יום הולדת שמח!</div>
+    <div class="bday-sub" id="bdaySub">היום יום ההולדת שלך! 🎉</div>
+    <button class="btn-bday" onclick="closeBday()">תודה! 🎊</button>
+  </div>
+</div>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="nav-title">🌟 מטלות הבית</div>
+  <div class="nav-btns">
+    <button class="btn-nav" onclick="goHome()">🏠 ראשי</button>
+    <button class="btn-nav" onclick="showRewards()">🎁 פרסים</button>
+    <button class="btn-nav" onclick="showStats()">📊 סטטיסטיקות</button>
+    <button class="btn-nav" onclick="showParentLogin()">&#128104;&#8205;&#128105; &#1492;&#1493;&#1512;&#1497;&#1501;</button>
+    <button class="btn-nav btn-help" id="helpBtn" onclick="triggerContextHelp()" title="עזרה">?</button>
+  </div>
+</nav>
+
+<div class="container">
+
+<!-- ══ HOME ══ -->
+<div id="s-home" class="screen active">
+  <div class="home-top">
+    <div class="children-col">
+      <div class="sec-title">👧👦 בחר ילד</div>
+      <div class="children-grid" id="childrenGrid" style="margin-bottom:20px"></div>
+      <div id="activeSection" style="display:none">
+        <div class="sec-title">&#1502;&#1496;&#1500;&#1493;&#1514; &#1508;&#1506;&#1497;&#1500;&#1493;&#1514;</div>
+        <div class="active-lanes" id="activeLanes"></div>
+      </div>
+    </div>
+    <div class="side-col">
+      <div class="sec-title">🏆 לוח מובילים שבועי</div>
+      <div class="lb-card" id="leaderboard"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CHILD CHORE SCREEN ══ -->
+<div id="s-chores" class="screen">
+  <button class="btn-back" onclick="goHome()">&#1495;&#1494;&#1512;&#1492;</button>
+  <div id="choreHeader"></div>
+  <div id="childActiveSection" class="child-active-section" style="display:none">
+    <div class="child-active-title">&#1492;&#1502;&#1496;&#1500;&#1493;&#1514; &#1513;&#1500;&#1497; &#1499;&#1512;&#1490;&#1506;</div>
+    <div class="child-runs-grid" id="childRunsGrid"></div>
+  </div>
+  <div class="top-row">
+    <div class="filter-tabs" id="filterTabs"></div>
+    <button class="btn-random" onclick="getRandomChore()">🎲 תן לי מטלה!</button>
+  </div>
+  <div class="chores-grid" id="choresGrid"></div>
+</div>
+
+<!-- ══ REWARDS ══ -->
+<div id="s-rewards" class="screen">
+  <div class="sec-title">🎁 חנות פרסים</div>
+  <div id="rewChildPick">
+    <button class="btn-back" onclick="goHome()">&#1495;&#1494;&#1512;&#1492;</button>
+    <div style="font-size:15px;font-weight:700;margin-bottom:12px">בחר ילד:</div>
+    <div class="children-grid" id="rewChildGrid"></div>
+  </div>
+  <div id="rewContent" style="display:none">
+    <div id="rewHeader" style="margin-bottom:14px"></div>
+    <div class="rewards-grid" id="rewardsGrid"></div>
+  </div>
+</div>
+
+<!-- ══ STATS ══ -->
+<div id="s-stats" class="screen">
+  <button class="btn-back" onclick="goHome()">&#1495;&#1494;&#1512;&#1492;</button>
+  <div class="sec-title">📊 תרומה לבית</div>
+  <div class="stats-grid" id="statsGrid"></div>
+  <div style="font-size:12px;color:var(--muted);margin-top:6px">* נתונים מצטברים לכל הזמנים</div>
+  <div class="today-summary-section">
+    <div class="sec-title" style="margin-top:24px">📅 פעילות היום</div>
+    <div id="statsTodaySummary"></div>
+  </div>
+</div>
+
+<!-- ══ PARENT ══ -->
+<div id="s-parent" class="screen">
+  <button class="btn-back" onclick="goHome()">&#1495;&#1494;&#1512;&#1492;</button>
+  <div class="sec-title">&#128104;&#8205;&#128105; &#1508;&#1488;&#1504;&#1500; &#1492;&#1493;&#1512;&#1497;&#1501;</div>
+  <div class="par-tabs">
+    <button class="par-tab active" onclick="parTab('appr',this)">אישורים</button>
+    <button class="par-tab" onclick="parTab('chores',this)">📋 מטלות</button>
+    <button class="par-tab" onclick="parTab('rewards',this)">🎁 פרסים</button>
+    <button class="par-tab" onclick="parTab('children',this)">👧 ילדים</button>
+    <button class="par-tab" onclick="parTab('data',this)">💾 נתונים</button>
+  </div>
+  <div id="pt-appr">
+    <div style="font-weight:800;font-size:15px;margin-bottom:9px">ממתין לאישור מטלות</div>
+    <div id="pendAppr"></div>
+    <div style="font-weight:800;font-size:15px;margin:16px 0 9px">מטלות פעילות (שחרור)</div>
+    <div id="parentActiveRuns"></div>
+    <div style="font-weight:800;font-size:15px;margin:16px 0 9px">ממתין לאישור פרסים</div>
+    <div id="pendRew"></div>
+  </div>
+  <div id="pt-children" style="display:none">
+    <button class="btn-add" id="btn-add-child" onclick="showAddChild()">+ הוסף ילד</button>
+    <div class="mgr-table-wrap">
+    <table class="mgr-table">
+      <thead><tr>
+        <th class="no-sort"></th>
+        <th onclick="sortChildTable('name',this)">שם</th>
+        <th onclick="sortChildTable('birthdate',this)">תאריך לידה</th>
+        <th onclick="sortChildTable('age',this)">גיל</th>
+        <th onclick="sortChildTable('points',this)">נקודות</th>
+        <th class="no-sort">פעולות</th>
+      </tr></thead>
+      <tbody id="childTable"></tbody>
+    </table></div>
+  </div>
+  <div id="pt-chores" style="display:none">
+    <button class="btn-add" id="btn-add-chore" onclick="showAddChore()">+ הוסף מטלה</button>
+    <div class="chore-filter-bar">
+      <input type="text" id="choreSearch" placeholder="🔍 חיפוש שם מטלה..." oninput="renderChoreTable()">
+      <select id="choreFilterLoc" onchange="renderChoreTable()">
+        <option value="">כל המיקומים</option>
+      </select>
+      <select id="choreFilterEnabled" onchange="renderChoreTable()">
+        <option value="">הכל</option>
+        <option value="1">פעיל בלבד</option>
+        <option value="0">מושבת בלבד</option>
+      </select>
+      <span class="filter-count" id="choreCount"></span>
+    </div>
+    <div class="mgr-table-wrap">
+    <table class="mgr-table">
+      <thead><tr>
+        <th class="no-sort">פעיל</th>
+        <th class="no-sort"></th>
+        <th onclick="choreSortBy('title',this)">שם</th>
+        <th onclick="choreSortBy('location',this)">מיקום</th>
+        <th onclick="choreSortBy('points',this)">נקודות</th>
+        <th onclick="choreSortBy('duration_minutes',this)">משך</th>
+        <th onclick="choreSortBy('min_age',this)">גיל</th>
+        <th onclick="choreSortBy('max_takers',this)">מקס.</th>
+        <th class="no-sort">פעולות</th>
+      </tr></thead>
+      <tbody id="choreTable"></tbody>
+    </table></div>
+  </div>
+  <div id="pt-rewards" style="display:none">
+    <button class="btn-add" id="btn-add-reward" onclick="showAddReward()">+ הוסף פרס</button>
+    <div class="mgr-table-wrap">
+    <table class="mgr-table">
+      <thead><tr>
+        <th class="no-sort">פעיל</th>
+        <th class="no-sort"></th>
+        <th onclick="rewSortBy('title',this)">שם</th>
+        <th onclick="rewSortBy('points_cost',this)">עלות</th>
+        <th onclick="rewSortBy('max_claims',this)">מגבלה</th>
+        <th class="no-sort">קהל יעד</th>
+        <th class="no-sort">פעולות</th>
+      </tr></thead>
+      <tbody id="rewardTable"></tbody>
+    </table></div>
+  </div>
+  <div id="pt-data" style="display:none">
+    <div style="display:flex;flex-direction:column;gap:11px;max-width:360px">
+      <button class="btn-primary" onclick="exportData()" style="width:auto;padding:11px 22px">💾 ייצוא נתונים (גיבוי)</button>
+      <button class="btn-secondary" onclick="document.getElementById('impFile').click()" style="width:auto;padding:10px 22px">📂 ייבוא נתונים</button>
+      <input type="file" id="impFile" accept=".json" style="display:none" onchange="importData(event)">
+      <hr style="border:1px solid var(--border)">
+      <div style="font-size:14px;font-weight:800">שינוי סיסמה</div>
+      <input type="password" id="newPw" placeholder="סיסמה חדשה"
+        style="padding:9px 11px;border-radius:12px;border:2px solid var(--border);font-family:var(--font);font-size:14px;background:var(--bg)">
+      <button class="btn-primary" onclick="changePw()" style="width:auto;padding:10px 22px">שמור סיסמה</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /container -->
+
+<!-- ══════════════ MODALS ══════════════ -->
+
+<!-- Password -->
+<div class="overlay" id="m-pw">
+  <div class="modal">
+    <h2>🔐 כניסת הורים</h2>
+    <div class="fg"><label>סיסמה</label>
+      <input type="password" id="pwInput" placeholder="הכנס סיסמה" onkeydown="if(event.key==='Enter')verifyPw()">
+    </div>
+    <div id="pwErr" style="color:var(--red);font-size:13px;margin-bottom:7px;display:none">&#1505;&#1497;&#1505;&#1502;&#1492; &#1513;&#1490;&#1493;&#1497;&#1492;</div>
+    <button class="btn-primary" onclick="verifyPw()">כניסה</button>
+    <button class="btn-secondary" onclick="closeM('m-pw')">ביטול</button>
+  </div>
+</div>
+
+<!-- CONFIRM TAKE CHORE -->
+<div class="overlay" id="m-confirm">
+  <div class="modal-confirm">
+    <div class="mc-header">
+      <span class="mc-emoji" id="mConfEmoji">&#11088;</span>
+      <div class="mc-title" id="mConfTitle"></div>
+    </div>
+    <div class="mc-body" id="mConfBody"></div>
+    <div class="mc-question">האם אתה מוכן?</div>
+    <div class="mc-btns">
+      <button class="btn-primary" onclick="doTakeChore()">&#1488;&#1504;&#1497; &#1500;&#1493;&#1511;&#1495;!</button>
+      <button class="btn-secondary" onclick="closeM('m-confirm')">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- 🛑 BUSY / ERROR ALERT -->
+<div class="overlay" id="m-busy">
+  <div class="modal-alert">
+    <div class="ma-header">
+      <span class="al-icon">🛑</span>
+      <div class="al-title">רגע!</div>
+      <div class="al-sub" id="busyMsg">לא ניתן לקחת מטלה זו כרגע.</div>
+    </div>
+    <div class="ma-footer">
+      <button class="btn-primary" onclick="closeM('m-busy')">הבנתי 👍</button>
+    </div>
+  </div>
+</div>
+
+<!-- 🎲 NO CHORES AVAILABLE -->
+<div class="overlay" id="m-nochores">
+  <div class="modal-alert">
+    <div class="ma-header">
+      <span class="al-icon">🎲</span>
+      <div class="al-title">אין מזל הפעם 😅</div>
+      <div class="al-sub">אין מטלות זמינות כרגע שאפשר לקחת. נסה שוב מאוחר יותר!</div>
+    </div>
+    <div class="ma-footer">
+      <button class="btn-primary" onclick="closeM('m-nochores')">אוקיי 👍</button>
+    </div>
+  </div>
+</div>
+
+<!-- Release confirm -->
+<div class="overlay" id="m-release">
+  <div class="modal">
+    <h2>שחרור מטלה</h2>
+    <div style="margin-bottom:16px;font-size:15px">האם לשחרר את המטלה? הנקודות לא יחושבו.</div>
+    <input type="hidden" id="releaseRunId">
+    <button class="btn-primary" style="background:linear-gradient(135deg,var(--red),#ff7043)" onclick="doRelease()">🗑 שחרר מטלה</button>
+    <button class="btn-secondary" onclick="closeM('m-release')">ביטול</button>
+  </div>
+</div>
+
+<!-- Add/Edit Child -->
+<div class="overlay" id="m-child">
+  <div class="modal">
+    <h2 id="childMTitle">הוסף ילד</h2>
+    <input type="hidden" id="editChildId">
+    <div class="fg"><label>שם</label><input type="text" id="cName" placeholder="שם הילד"></div>
+    <div class="fg"><label>תאריך לידה</label><input type="date" id="cBirthdate"></div>
+    <div class="fg">
+      <label>מין</label>
+      <div class="gender-btns" id="genderBtns">
+        <button type="button" class="gender-btn" data-gender="" onclick="selGender('')">🧒 לא מוגדר</button>
+        <button type="button" class="gender-btn" data-gender="boy" onclick="selGender('boy')">👦 בן</button>
+        <button type="button" class="gender-btn" data-gender="girl" onclick="selGender('girl')">👧 בת</button>
+      </div>
+      <input type="hidden" id="cGender" value="">
+    </div>
+    <div class="fg">
+      <label>תמונה / אמוג'י</label>
+      <div class="photo-upload">
+        <div id="childPhotoPreview" class="photo-emoji-preview">&#11088;</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <button type="button" class="btn-upload" onclick="document.getElementById('photoFileInput').click()">📷 העלאת תמונה</button>
+          <input type="file" id="photoFileInput" accept="image/*" style="display:none" onchange="onPhotoUpload(event)">
+          <button type="button" class="btn-clear-photo" onclick="clearPhoto()">&#1502;&#1495;&#1511; &#1514;&#1502;&#1493;&#1504;&#1492;</button>
+        </div>
+      </div>
+      <input type="hidden" id="cPhoto">
+    </div>
+    <div class="fg"><label>בחר אמוג'י (במקום תמונה)</label><div class="av-grid" id="avPicker"></div></div>
+    <div class="fg"><label>צבע</label><div class="col-grid" id="colPicker"></div></div>
+    <button class="btn-primary" onclick="saveChild()">שמור</button>
+    <button class="btn-secondary" onclick="closeM('m-child')">ביטול</button>
+  </div>
+</div>
+
+<!-- Add/Edit Chore -->
+<div class="overlay" id="m-chore">
+  <div class="modal modal-wide">
+    <h2 id="choreMTitle">הוסף מטלה</h2>
+    <input type="hidden" id="editChoreId">
+    <div class="fg-row">
+      <div class="fg"><label>שם המטלה</label><input type="text" id="chTitle" placeholder="שם המטלה"></div>
+      <div class="fg">
+        <label>אמוג'י</label>
+        <div class="emoji-picker-wrap">
+		<input type="text" id="chIcon" placeholder="" readonly
+			style="font-size:22px;text-align:center;cursor:pointer;max-width:70px"
+			onclick="toggleEmojiPicker()">
+          <div class="emoji-picker-dropdown" id="emojiDropdown">
+            <div class="emoji-cats" id="emojiCats"></div>
+            <div class="emoji-grid" id="emojiGrid"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label>נקודות</label><input type="number" id="chPts" min="1" placeholder="נקודות"></div>
+      <div class="fg">
+        <label>מי יכול לקחת?</label>
+        <select id="chMaxTakersType" onchange="updateMaxTakersUI()">
+          <option value="one">רק אחד</option>
+          <option value="specific">מספר מסוים</option>
+          <option value="all">כל אחד</option>
+        </select>
+        <div id="maxTakersNumWrap" style="display:none;margin-top:6px">
+          <input type="number" id="chMaxTakers" min="2" value="2" placeholder="כמה?">
+        </div>
+      </div>
+    </div>
+    <!-- Gender / child targeting -->
+    <div class="fg">
+      <label>קהל יעד — לפי מין</label>
+      <select id="chGenderFilter" onchange="updateChoreTargetUI()">
+        <option value="all">כולם (בנים ובנות)</option>
+        <option value="boys">בנים בלבד</option>
+        <option value="girls">בנות בלבד</option>
+      </select>
+    </div>
+    <div class="fg" id="chAllowedWrap">
+      <label>או: ילדים ספציפיים (משאיר ריק = לפי הבחירה למעלה)</label>
+      <div class="child-checkboxes" id="chAllowedChildren"></div>
+    </div>
+    <div class="fg"><label>מיקום</label>
+      <select id="chLoc"><option>מטבח</option><option>סלון</option><option>חדר שינה</option><option>חצר</option><option>אמבטיה</option><option>כללי</option></select>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label>גיל מינימום</label><input type="number" id="chMinAge" min="1" value="4"></div>
+      <div class="fg"><label>גיל מקסימום</label><input type="number" id="chMaxAge" min="1" value="12"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label>&#1495;&#1500;&#1493;&#1503; &#1500;&#1511;&#1497;&#1495;&#1492; &#1502;</label><input type="time" id="chStart" value="08:00"></div>
+      <div class="fg"><label>&#1495;&#1500;&#1493;&#1503; &#1500;&#1511;&#1497;&#1495;&#1492; &#1506;&#1491;</label><input type="time" id="chEnd" value="20:00"></div>
+    </div>
+    <div class="fg-row">
+      <div class="fg"><label>&#1494;&#1502;&#1503; &#1500;&#1489;&#1497;&#1510;&#1493;&#1506; &#1488;&#1495;&#1512;&#1497; &#1500;&#1511;&#1497;&#1495;&#1492; (&#1491;&#1511;&#1493;&#1514;)</label>
+        <input type="number" id="chDuration" min="1" value="30" placeholder="30"></div>
+      <div class="fg"><label>🔁 כמה פעמים ביום לכל ילד</label>
+        <select id="chMaxPerDay" onchange="updateMaxPerDayUI()">
+          <option value="1">פעם אחת</option>
+          <option value="0">ללא הגבלה</option>
+          <option value="specific">מספר מסוים</option>
+        </select>
+        <div id="maxPerDayNumWrap" style="display:none;margin-top:6px">
+          <input type="number" id="chMaxPerDayNum" min="2" value="2" placeholder="כמה?">
+        </div>
+      </div>
+    </div>
+    <div class="fg"><label>חזרה</label>
+      <select id="chRepeat" onchange="updateRepeatUI()">
+        <option value="daily">כל יום</option>
+        <option value="weekly">ימים ספציפיים</option>
+        <option value="every_n_weeks">כל X שבועות</option>
+        <option value="once">חד פעמי</option>
+      </select>
+    </div>
+    <div id="daysUI" style="display:none">
+      <div class="fg"><label>ימים</label><div class="days-row" id="daysBtns"></div></div>
+    </div>
+    <div id="intervalUI" style="display:none">
+      <div class="fg"><label>כל כמה שבועות</label><input type="number" id="chInterval" min="1" value="2"></div>
+    </div>
+    <button class="btn-primary" onclick="saveChore()">שמור</button>
+    <button class="btn-secondary" onclick="closeM('m-chore');closeEmojiPicker()">ביטול</button>
+  </div>
+</div>
+
+<!-- Points Adjust -->
+<div class="overlay" id="m-pts">
+  <div class="modal" style="padding:0;overflow:hidden;max-width:460px">
+    <div class="pts-modal-header">
+      <div class="pts-child-av" id="ptsAv"></div>
+      <div class="pts-child-name" id="ptsName"></div>
+      <div class="pts-current" id="ptsCurrent"></div>
+    </div>
+    <div class="pts-body">
+      <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px">קיצורים מהירים:</div>
+      <div class="pts-quick" id="ptsQuick"></div>
+      <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px">סכום מותאם אישית:</div>
+      <div class="pts-custom">
+        <div class="fg">
+          <label>כמות נקודות</label>
+          <input type="number" id="ptsAmount" min="1" placeholder="0" oninput="updatePtsPreview()" style="font-size:20px;font-weight:800;text-align:center">
+        </div>
+        <div>
+          <label style="display:block;font-size:14px;font-weight:700;margin-bottom:6px;color:var(--muted)">כיוון</label>
+          <div class="pts-sign-btns">
+            <button class="pts-sign active-pos" id="ptsSignPos" onclick="setPtsSign(1)">+</button>
+            <button class="pts-sign" id="ptsSignNeg" onclick="setPtsSign(-1)">-</button>
+          </div>
+        </div>
+      </div>
+      <div class="fg" style="margin-bottom:10px">
+        <label>סיבה (אפשרי)</label>
+        <input type="text" id="ptsReason" placeholder="למשל: עזרתא במיוחד" oninput="updatePtsPreview()">
+      </div>
+      <div class="pts-preview" id="ptsPreview">בחר כמות נקודות</div>
+      <button class="btn-primary" onclick="doAdjustPoints()" style="margin-top:4px">&#1506;&#1491;&#1499;&#1503; &#1504;&#1511;&#1493;&#1491;&#1493;&#1514;</button>
+      <button class="btn-secondary" onclick="closeM('m-pts')" style="margin-top:6px">סגור</button>
+      <div id="ptsHistWrap">
+        <div style="font-size:13px;font-weight:700;color:var(--muted);margin-top:16px">היסטוריית נקודות:</div>
+        <div class="pts-hist" id="ptsHist"></div>
+      </div>
+    </div>
+    <div style="height:20px"></div>
+  </div>
+</div>
+
+<!-- Add/Edit Reward -->
+<div class="overlay" id="m-reward">
+  <div class="modal">
+    <h2 id="rewMTitle">הוסף פרס</h2>
+    <input type="hidden" id="editRewId">
+    <div class="fg"><label>שם הפרס</label><input type="text" id="rTitle" placeholder="שם הפרס"></div>
+    <div class="fg">
+      <label>תמונה לפרס (אפשרי)</label>
+      <div class="photo-upload">
+        <div id="rewPhotoPreview" class="photo-emoji-preview" style="font-size:32px">🎁</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <button type="button" class="btn-upload" onclick="document.getElementById('rewPhotoFileInput').click()">📷 העלאת תמונה</button>
+          <input type="file" id="rewPhotoFileInput" accept="image/*" style="display:none" onchange="onRewPhotoUpload(event)">
+          <button type="button" class="btn-clear-photo" onclick="clearRewPhoto()">מחק תמונה</button>
+        </div>
+      </div>
+      <input type="hidden" id="rPhoto">
+    </div>
+    <div class="fg"><label>אמוג'י (יוצג אם אין תמונה)</label><input type="text" id="rIcon" placeholder="🎁" style="font-size:22px;text-align:center;max-width:70px"></div>
+    <div class="fg"><label>עלות (נקודות)</label><input type="number" id="rCost" min="1" placeholder="נקודות"></div>
+    <div class="fg">
+      <label>מגבלת מימוש</label>
+      <select id="rMaxClaims" onchange="updateMaxClaimsUI()">
+        <option value="0">ללא הגבלה (כולם יכולים לבקש)</option>
+        <option value="1">פעם אחת (רק ילד אחד)</option>
+        <option value="specific">מספר מסוים</option>
+      </select>
+      <div id="maxClaimsNumWrap" style="display:none;margin-top:6px">
+        <input type="number" id="rMaxClaimsNum" min="2" value="2" placeholder="כמה פעמים?">
+      </div>
+      <div id="maxClaimsHint" style="font-size:12px;color:var(--muted);margin-top:5px"></div>
+    </div>
+    <!-- Gender / child targeting for rewards -->
+    <div class="fg">
+      <label>קהל יעד — לפי מין</label>
+      <select id="rGenderFilter" onchange="updateRewTargetUI()">
+        <option value="all">כולם (בנים ובנות)</option>
+        <option value="boys">בנים בלבד</option>
+        <option value="girls">בנות בלבד</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>או: ילדים ספציפיים (משאיר ריק = לפי הבחירה למעלה)</label>
+      <div class="child-checkboxes" id="rAllowedChildren"></div>
+    </div>
+    <button class="btn-primary" onclick="saveReward()">שמור</button>
+    <button class="btn-secondary" onclick="closeM('m-reward')">ביטול</button>
+  </div>
+</div>
+
+<div id="ctx-help-overlay" class="ctx-help-overlay" onclick="closeCtxHelp(event)">
+  <div class="ctx-help-box">
+    <div class="ctx-help-title" id="ctxHelpTitle">❓ עזרה</div>
+    <div class="ctx-help-items" id="ctxHelpItems"></div>
+    <button class="btn-primary" onclick="document.getElementById('ctx-help-overlay').classList.remove('show')">הבנתי! 👍</button>
+  </div>
+</div>
+
+<div id="toast-box"></div>
+
+<!-- Module load order matters: state first, init last -->
+<script src="/static/js/state.js"></script>
+<script src="/static/js/ui.js"></script>
+<script src="/static/js/home.js"></script>
+<script src="/static/js/chores.js"></script>
+<script src="/static/js/rewards.js"></script>
+<script src="/static/js/stats.js"></script>
+<script src="/static/js/parent.js"></script>
+<script src="/static/js/onboarding.js"></script>
+<script src="/static/js/init.js"></script>
+</body>
+</html>
