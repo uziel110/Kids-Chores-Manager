@@ -18,9 +18,11 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE  = os.path.join(BASE_DIR, "data.json")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
+SHARED_DIR = os.path.join(BASE_DIR, "shared")
 PHOTOS_DIR = os.path.join(BASE_DIR, "photos")
 os.makedirs(PHOTOS_DIR, exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/shared", StaticFiles(directory=SHARED_DIR), name="shared")
 app.mount("/photos", StaticFiles(directory=PHOTOS_DIR), name="photos")
 
 # ─── helpers ──────────────────────────────────────────────────────────────
