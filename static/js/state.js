@@ -87,6 +87,13 @@ function toast(msg, type = '') {
   setTimeout(() => t.remove(), 3200);
 }
 
+/* ── Time formatting ── */
+function fmtTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
 /* ── Eligibility ── */
 function isChildEligibleForReward(child, rew) {
   const allowed = rew.allowed_child_ids || [];

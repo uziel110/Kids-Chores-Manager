@@ -61,15 +61,34 @@
 <div id="s-chores" class="screen">
   <button class="btn-back" onclick="goHome()">&#1495;&#1494;&#1512;&#1492;</button>
   <div id="choreHeader"></div>
-  <div id="childActiveSection" class="child-active-section" style="display:none">
-    <div class="child-active-title">&#1492;&#1502;&#1496;&#1500;&#1493;&#1514; &#1513;&#1500;&#1497; &#1499;&#1512;&#1490;&#1506;</div>
-    <div class="child-runs-grid" id="childRunsGrid"></div>
+
+  <!-- Main mode tabs -->
+  <div class="child-main-tabs">
+    <button class="child-main-tab active" id="cmt-chores" onclick="switchChildMainTab('chores',this)">📋 מטלות</button>
+    <button class="child-main-tab" id="cmt-mishna" onclick="switchChildMainTab('mishna',this)">📖 משניות מיוחדות</button>
   </div>
-  <div class="top-row">
-    <div class="filter-tabs" id="filterTabs"></div>
-    <button class="btn-random" onclick="getRandomChore()">🎲 תן לי מטלה!</button>
+
+  <!-- CHORES MODE -->
+  <div id="childChoresMode">
+    <div id="childActiveSection" class="child-active-section" style="display:none">
+      <div class="child-active-title">&#1492;&#1502;&#1496;&#1500;&#1493;&#1514; &#1513;&#1500;&#1497; &#1499;&#1512;&#1490;&#1506;</div>
+      <div class="child-runs-grid" id="childRunsGrid"></div>
+    </div>
+    <div id="childDoneSection" class="child-active-section" style="display:none">
+      <div class="child-active-title" style="color:var(--green)">&#10003; &#1489;&#1497;&#1510;&#1506;&#1514;&#1497; &#1492;&#1497;&#1493;&#1501;</div>
+      <div class="child-runs-grid" id="childDoneGrid"></div>
+    </div>
+    <div class="top-row">
+      <div class="filter-tabs" id="filterTabs"></div>
+      <button class="btn-random" onclick="getRandomChore()">🎲 תן לי מטלה!</button>
+    </div>
+    <div class="chores-grid" id="choresGrid"></div>
   </div>
-  <div class="chores-grid" id="choresGrid"></div>
+
+  <!-- MISHNA MODE -->
+  <div id="childMishnaMode" style="display:none">
+    <div id="childMishnaContent"></div>
+  </div>
 </div>
 
 <!-- ══ REWARDS ══ -->
@@ -93,7 +112,11 @@
   <div class="stats-grid" id="statsGrid"></div>
   <div style="font-size:12px;color:var(--muted);margin-top:6px">* נתונים מצטברים לכל הזמנים</div>
   <div class="today-summary-section">
-    <div class="sec-title" style="margin-top:24px">📅 פעילות היום</div>
+    <div class="sec-title" style="margin-top:24px">&#128197; &#1508;&#1506;&#1497;&#1500;&#1493;&#1514; &#1492;&#1497;&#1493;&#1501;</div>
+    <div class="today-filter-row">
+      <button class="today-filter-btn active" onclick="setTodayFilter('by_chore',this)">&#1500;&#1508;&#1497; &#1502;&#1496;&#1500;&#1492;</button>
+      <button class="today-filter-btn" onclick="setTodayFilter('by_child',this)">&#1500;&#1508;&#1497; &#1497;&#1500;&#1491;</button>
+    </div>
     <div id="statsTodaySummary"></div>
   </div>
 </div>
@@ -107,6 +130,7 @@
     <button class="par-tab" onclick="parTab('chores',this)">📋 מטלות</button>
     <button class="par-tab" onclick="parTab('rewards',this)">🎁 פרסים</button>
     <button class="par-tab" onclick="parTab('children',this)">👧 ילדים</button>
+    <button class="par-tab" onclick="parTab('mishna',this)">📖 משניות</button>
     <button class="par-tab" onclick="parTab('data',this)">💾 נתונים</button>
   </div>
   <div id="pt-appr">
@@ -116,6 +140,8 @@
     <div id="parentActiveRuns"></div>
     <div style="font-weight:800;font-size:15px;margin:16px 0 9px">ממתין לאישור פרסים</div>
     <div id="pendRew"></div>
+    <div style="font-weight:800;font-size:15px;margin:16px 0 9px">📖 ממתין לאישור משניות</div>
+    <div id="mishnaPendingAppr"></div>
   </div>
   <div id="pt-children" style="display:none">
     <button class="btn-add" id="btn-add-child" onclick="showAddChild()">+ הוסף ילד</button>
@@ -178,6 +204,16 @@
       <tbody id="rewardTable"></tbody>
     </table></div>
   </div>
+  <!-- ══ MISHNA TAB ══ -->
+  <div id="pt-mishna" style="display:none">
+    <div class="mishna-par-header">
+      <button class="btn-add" onclick="showAddMishnaTask()">+ הוסף משימת משניות</button>
+    </div>
+    <div id="mishnaTasksList"></div>
+    <div style="font-weight:800;font-size:15px;margin:18px 0 9px">⏳ ממתין לאישור משניות</div>
+    <div id="mishnaPendingList"></div>
+  </div>
+
   <div id="pt-data" style="display:none">
     <div style="display:flex;flex-direction:column;gap:11px;max-width:360px">
       <button class="btn-primary" onclick="exportData()" style="width:auto;padding:11px 22px">💾 ייצוא נתונים (גיבוי)</button>
@@ -481,6 +517,28 @@
   </div>
 </div>
 
+<!-- Add Mishna Task (parent) -->
+<div class="overlay" id="m-mishna-task">
+  <div class="modal">
+    <h2>📖 הוסף משימת משניות</h2>
+    <input type="hidden" id="editMishnaTaskId">
+    <div class="fg">
+      <label>ילד</label>
+      <select id="mishnaTaskChild"></select>
+    </div>
+    <div class="fg">
+      <label>כותרת המשימה</label>
+      <input type="text" id="mishnaTaskTitle" value="לימוד משניות בעל פה" placeholder="כותרת">
+    </div>
+    <div class="fg">
+      <label>נקודות לכל משנה שתאושר</label>
+      <input type="number" id="mishnaTaskPts" min="1" value="10">
+    </div>
+    <button class="btn-primary" onclick="saveMishnaTask()">שמור</button>
+    <button class="btn-secondary" onclick="closeM('m-mishna-task')">ביטול</button>
+  </div>
+</div>
+
 <div id="ctx-help-overlay" class="ctx-help-overlay" onclick="closeCtxHelp(event)">
   <div class="ctx-help-box">
     <div class="ctx-help-title" id="ctxHelpTitle">❓ עזרה</div>
@@ -500,6 +558,8 @@
 <script src="/static/js/stats.js"></script>
 <script src="/static/js/parent.js"></script>
 <script src="/static/js/onboarding.js"></script>
+<script src="/static/js/mishna_data.js"></script>
+<script src="/static/js/mishna.js"></script>
 <script src="/static/js/init.js"></script>
 </body>
 </html>

@@ -20,7 +20,7 @@ async function openChores(childId) {
     </div>`;
 
   showScreen('chores');
-  await Promise.all([loadChildActiveRuns(childId), loadChores(childId, 'הכל')]);
+  await Promise.all([loadChildActiveRuns(childId), loadChildTodayDone(childId), loadChores(childId, 'הכל')]);
 }
 
 async function openChildRewards(childId) {
@@ -59,6 +59,33 @@ async function loadChildActiveRuns(childId) {
     </div>`;
   }).join('');
   startTimers();
+}
+
+/* ── Today's completed runs for child ── */
+async function loadChildTodayDone(childId) {
+  const runs    = await api(`/api/runs/today-detail?child_id=${childId}`);
+  const done    = runs.filter(r => r.status === 'done');
+  const sec     = document.getElementById('childDoneSection');
+  const grid    = document.getElementById('childDoneGrid');
+  if (!done.length) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  grid.innerHTML = done.map(r => {
+    const ch      = r.chore || {};
+    const timeStr = fmtTime(r.started_at);
+    const durParts = [];
+    if (timeStr) durParts.push(`🕐 ${timeStr}`);
+    if (r.actual_minutes != null) {
+      const durTxt = r.exceeded
+        ? `<span style="color:var(--red);font-weight:700">⏰ ${r.actual_minutes} דק' (חרג ב-${r.actual_minutes - r.allocated_minutes} דק')</span>`
+        : `⏱ ${r.actual_minutes} דק'`;
+      durParts.push(durTxt);
+    }
+    return `<div class="run-chip-child done-chip">
+      <div style="font-size:26px;margin-bottom:4px">${ch.icon || '⭐'}</div>
+      <div style="font-size:14px;font-weight:800;margin-bottom:4px">${ch.title || ''}</div>
+      <div style="font-size:12px;color:var(--muted)">${durParts.join(' • ')}</div>
+    </div>`;
+  }).join('');
 }
 
 /* ── Empty-state based on time of day ── */

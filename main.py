@@ -618,6 +618,42 @@ async def today_summary():
 
     return sorted(result, key=lambda x: -x["total"])
 
+@app.get("/api/runs/today-detail")
+async def today_detail(child_id: str = None):
+    data  = load_data()
+    today = date.today().isoformat()
+    cm    = {c["id"]: migrate_child(c)  for c in data["children"]}
+    chm   = {ch["id"]: migrate_chore(ch) for ch in data["chores"]}
+
+    runs = []
+    for r in data["chore_runs"]:
+        if r["status"] == "rejected":
+            continue
+        if (r.get("started_at", "") or "")[:10] != today:
+            continue
+        if child_id and r["child_id"] != child_id:
+            continue
+        rc = dict(r)
+        rc["child"] = cm.get(r["child_id"], {})
+        rc["chore"] = chm.get(r["chore_id"], {})
+        allocated = rc["chore"].get("duration_minutes", 30)
+        try:
+            started = datetime.fromisoformat(r["started_at"])
+            finished_str = r.get("finished_at")
+            if finished_str:
+                finished = datetime.fromisoformat(finished_str)
+                actual_mins = max(1, int((finished - started).total_seconds() / 60))
+            else:
+                actual_mins = None
+        except:
+            actual_mins = None
+        rc["actual_minutes"]   = actual_mins
+        rc["allocated_minutes"] = allocated
+        rc["exceeded"] = actual_mins is not None and actual_mins > allocated
+        runs.append(rc)
+
+    return sorted(runs, key=lambda x: x.get("started_at", ""))
+
 # ── stats ─────────────────────────────────────────────────────────────────
 
 @app.get("/api/points-history/{child_id}")
@@ -817,10 +853,171 @@ async def import_backup(payload: dict):
     payload.setdefault("chore_runs",     [])
     payload.setdefault("reward_claims",  [])
     payload.setdefault("points_history", [])
+    payload.setdefault("mishna_tasks",   [])
+    payload.setdefault("mishna_items",   [])
     payload["children"] = [migrate_child(dict(c))  for c in payload["children"]]
     payload["chores"]   = [migrate_chore(dict(ch)) for ch in payload["chores"]]
     payload["rewards"]  = [migrate_reward(dict(r)) for r in payload["rewards"]]
     save_data(payload)
+    return {"ok": True}
+
+# ── mishna ────────────────────────────────────────────────────────────────────
+
+class MishnaTaskModel(BaseModel):
+    child_id: str
+    title: str = "לימוד משניות בעל פה"
+    points_per_mishna: int = 10
+
+class MishnaClaimModel(BaseModel):
+    task_id: str
+    seder: str
+    masechet: str
+    perek_num: int
+    mishna_nums: List[int]
+
+def _migrate_mishna(data: dict):
+    data.setdefault("mishna_tasks", [])
+    data.setdefault("mishna_items", [])
+
+def _he_num(n):
+    nums = ['','א','ב','ג','ד','ה','ו','ז','ח','ט','י',
+            'יא','יב','יג','יד','טו','טז','יז','יח','יט','כ',
+            'כא','כב','כג','כד','כה','כו','כז','כח','כט','ל']
+    return nums[n] if n < len(nums) else str(n)
+
+@app.get("/api/mishna/tasks")
+async def get_mishna_tasks():
+    data = load_data()
+    _migrate_mishna(data)
+    cm = {c["id"]: migrate_child(c) for c in data["children"]}
+    return [{**t, "child": cm.get(t["child_id"], {})} for t in data["mishna_tasks"]]
+
+@app.post("/api/mishna/tasks")
+async def add_mishna_task(m: MishnaTaskModel):
+    data = load_data()
+    _migrate_mishna(data)
+    task = {"id": gen_id(), "child_id": m.child_id, "title": m.title,
+            "points_per_mishna": m.points_per_mishna, "created_at": now_str()}
+    data["mishna_tasks"].append(task)
+    save_data(data)
+    return task
+
+@app.delete("/api/mishna/tasks/{tid}")
+async def del_mishna_task(tid: str):
+    data = load_data()
+    _migrate_mishna(data)
+    data["mishna_tasks"] = [t for t in data["mishna_tasks"] if t["id"] != tid]
+    save_data(data)
+    return {"ok": True}
+
+@app.get("/api/mishna/tasks/for-child/{child_id}")
+async def mishna_tasks_for_child(child_id: str):
+    data = load_data()
+    _migrate_mishna(data)
+    return [t for t in data["mishna_tasks"] if t["child_id"] == child_id]
+
+@app.get("/api/mishna/items/for-child/{child_id}")
+async def mishna_items_for_child(child_id: str):
+    data = load_data()
+    _migrate_mishna(data)
+    tm = {t["id"]: t for t in data["mishna_tasks"]}
+    items = [i for i in data["mishna_items"] if i["child_id"] == child_id]
+    return [{**i, "task": tm.get(i["task_id"], {})} for i in items]
+
+@app.get("/api/mishna/items/pending")
+async def mishna_items_pending():
+    data = load_data()
+    _migrate_mishna(data)
+    cm = {c["id"]: migrate_child(c) for c in data["children"]}
+    tm = {t["id"]: t for t in data["mishna_tasks"]}
+    items = [i for i in data["mishna_items"] if i["status"] == "child_done"]
+    return [{**i, "child": cm.get(i["child_id"], {}), "task": tm.get(i["task_id"], {})} for i in items]
+
+@app.post("/api/mishna/items/claim")
+async def mishna_claim(payload: MishnaClaimModel):
+    data = load_data()
+    _migrate_mishna(data)
+    task = next((t for t in data["mishna_tasks"] if t["id"] == payload.task_id), None)
+    if not task:
+        raise HTTPException(404, "Task not found")
+    taken = {
+        (i["seder"], i["masechet"], i["perek_num"], i["mishna_num"])
+        for i in data["mishna_items"]
+        if i["child_id"] == task["child_id"]
+    }
+    created = []
+    for num in payload.mishna_nums:
+        key = (payload.seder, payload.masechet, payload.perek_num, num)
+        if key in taken:
+            continue
+        item = {
+            "id": gen_id(), "task_id": payload.task_id, "child_id": task["child_id"],
+            "seder": payload.seder, "masechet": payload.masechet,
+            "perek_num": payload.perek_num, "mishna_num": num,
+            "status": "claimed", "claimed_at": now_str(),
+            "child_done_at": None, "reviewed_at": None,
+        }
+        data["mishna_items"].append(item)
+        created.append(item)
+        taken.add(key)
+    save_data(data)
+    return created
+
+@app.post("/api/mishna/items/{iid}/done")
+async def mishna_item_done(iid: str):
+    data = load_data()
+    _migrate_mishna(data)
+    for i in data["mishna_items"]:
+        if i["id"] == iid and i["status"] in ("claimed", "needs_review"):
+            i["status"] = "child_done"
+            i["child_done_at"] = now_str()
+            save_data(data)
+            return i
+    raise HTTPException(404, "Not found or wrong status")
+
+@app.post("/api/mishna/items/{iid}/approve")
+async def mishna_item_approve(iid: str):
+    data = load_data()
+    _migrate_mishna(data)
+    for i in data["mishna_items"]:
+        if i["id"] == iid and i["status"] == "child_done":
+            i["status"] = "parent_approved"
+            i["reviewed_at"] = now_str()
+            task = next((t for t in data["mishna_tasks"] if t["id"] == i["task_id"]), None)
+            pts = task["points_per_mishna"] if task else 10
+            for c in data["children"]:
+                if c["id"] == i["child_id"]:
+                    c["points"]        = c.get("points", 0) + pts
+                    c["weekly_points"] = c.get("weekly_points", 0) + pts
+                    c["total_points"]  = c.get("total_points", 0) + pts
+                    label = f'משנה: {i["masechet"]} פ"{_he_num(i["perek_num"])} מ"{_he_num(i["mishna_num"])}'
+                    data["points_history"].append({
+                        "id": gen_id(), "child_id": i["child_id"],
+                        "points": pts, "reason": label, "date": now_str(),
+                    })
+                    break
+            save_data(data)
+            return i
+    raise HTTPException(404, "Not found or wrong status")
+
+@app.post("/api/mishna/items/{iid}/needs-review")
+async def mishna_item_needs_review(iid: str):
+    data = load_data()
+    _migrate_mishna(data)
+    for i in data["mishna_items"]:
+        if i["id"] == iid and i["status"] == "child_done":
+            i["status"] = "needs_review"
+            i["reviewed_at"] = now_str()
+            save_data(data)
+            return i
+    raise HTTPException(404, "Not found or wrong status")
+
+@app.delete("/api/mishna/items/{iid}")
+async def mishna_item_return(iid: str):
+    data = load_data()
+    _migrate_mishna(data)
+    data["mishna_items"] = [i for i in data["mishna_items"] if i["id"] != iid]
+    save_data(data)
     return {"ok": True}
 
 # ── weekly reset ──────────────────────────────────────────────────────────

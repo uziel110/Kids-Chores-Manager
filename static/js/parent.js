@@ -33,9 +33,22 @@ function parTab(name, btn) {
   if (name === 'children') loadChildTable();
   if (name === 'chores')   loadChoreTable();
   if (name === 'rewards')  loadRewardTable();
+  if (name === 'mishna')   loadMishnaTab();
 }
 
 /* ── Approvals ── */
+function _runTimingHtml(r) {
+  if (!r.finished_at || !r.started_at) return '';
+  const actualMins = Math.max(1, Math.round((new Date(r.finished_at) - new Date(r.started_at)) / 60000));
+  const allocated  = r.chore?.duration_minutes || 30;
+  const exceeded   = actualMins > allocated;
+  const color      = exceeded ? 'var(--red)' : 'var(--green)';
+  const txt = exceeded
+    ? `⏰ לקח ${actualMins} דק' • חרג ב-${actualMins - allocated} דק' מהזמן שהוקצב`
+    : `✅ לקח ${actualMins} דק' מתוך ${allocated} דק'`;
+  return `<div style="font-size:11px;color:${color};font-weight:600;margin-top:4px">${txt}</div>`;
+}
+
 async function loadApprovals() {
   const runs    = await api('/api/runs/active');
   const waiting = runs.filter(r => r.status === 'waiting_approval');
@@ -48,6 +61,7 @@ async function loadApprovals() {
         <div class="appr-info">
           <div class="appr-name">${r.child?.avatar || ''} ${r.child?.name || ''}</div>
           <div class="appr-sub">${r.chore?.title || ''} • ⭐ ${r.chore?.points || 0}</div>
+          ${_runTimingHtml(r)}
         </div>
         <div class="appr-btns">
           <button class="btn-appr" onclick="approveRun('${r.id}')">✔ אשר</button>
@@ -85,6 +99,8 @@ async function loadApprovals() {
         </div>
       </div>`).join('')
     : '<div class="empty"><div class="empty-ico">🎁</div><p>אין פרסים לאישור</p></div>';
+
+  await loadMishnaPendingInApprovals();
 }
 
 async function approveRun(id)  { await api(`/api/runs/${id}/approve`,'POST'); confetti(); toast('✅ מטלה אושרה! נקודות נוספו 🌟','ok'); await loadApprovals(); await refreshHome(); }
