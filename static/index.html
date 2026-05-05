@@ -43,7 +43,6 @@
 <div id="s-home" class="screen active">
   <div class="home-top">
     <div class="children-col">
-      <div class="sec-title">👧👦 בחר ילד</div>
       <div class="children-grid" id="childrenGrid" style="margin-bottom:20px"></div>
       <div id="activeSection" style="display:none">
         <div class="sec-title">&#1502;&#1496;&#1500;&#1493;&#1514; &#1508;&#1506;&#1497;&#1500;&#1493;&#1514;</div>
@@ -65,7 +64,7 @@
   <!-- Main mode tabs -->
   <div class="child-main-tabs">
     <button class="child-main-tab active" id="cmt-chores" onclick="switchChildMainTab('chores',this)">📋 מטלות</button>
-    <button class="child-main-tab" id="cmt-mishna" onclick="switchChildMainTab('mishna',this)">📖 משניות מיוחדות</button>
+    <button class="child-main-tab" id="cmt-mishna" onclick="switchChildMainTab('mishna',this)">📖 משניות</button>
   </div>
 
   <!-- CHORES MODE -->
@@ -93,10 +92,9 @@
 
 <!-- ══ REWARDS ══ -->
 <div id="s-rewards" class="screen">
-  <div class="sec-title">🎁 חנות פרסים</div>
+  <button class="btn-back" id="rewBackBtn" onclick="goHome()">&#1495;&#1494;&#1512;&#1492;</button>
   <div id="rewChildPick">
-    <button class="btn-back" onclick="goHome()">&#1495;&#1494;&#1512;&#1492;</button>
-    <div style="font-size:15px;font-weight:700;margin-bottom:12px">בחר ילד:</div>
+    <div class="sec-title">🎁 חנות פרסים</div>
     <div class="children-grid" id="rewChildGrid"></div>
   </div>
   <div id="rewContent" style="display:none">
@@ -130,7 +128,7 @@
     <button class="par-tab" onclick="parTab('chores',this)">📋 מטלות</button>
     <button class="par-tab" onclick="parTab('rewards',this)">🎁 פרסים</button>
     <button class="par-tab" onclick="parTab('children',this)">👧 ילדים</button>
-    <button class="par-tab" onclick="parTab('mishna',this)">📖 משניות</button>
+    <button class="par-tab" onclick="parTab('log',this)">📜 לוג</button>
     <button class="par-tab" onclick="parTab('data',this)">💾 נתונים</button>
   </div>
   <div id="pt-appr">
@@ -142,6 +140,12 @@
     <div id="pendRew"></div>
     <div style="font-weight:800;font-size:15px;margin:16px 0 9px">📖 ממתין לאישור משניות</div>
     <div id="mishnaPendingAppr"></div>
+    <div style="font-weight:800;font-size:15px;margin:16px 0 9px">💨 מטלות שפג תוקפן היום</div>
+    <div id="expiredRuns"></div>
+  </div>
+  <div id="pt-log" style="display:none">
+    <div style="font-weight:800;font-size:15px;margin-bottom:9px">📜 לוג מטלות שבוצעו</div>
+    <div id="runsLogList"></div>
   </div>
   <div id="pt-children" style="display:none">
     <button class="btn-add" id="btn-add-child" onclick="showAddChild()">+ הוסף ילד</button>
@@ -159,34 +163,42 @@
     </table></div>
   </div>
   <div id="pt-chores" style="display:none">
-    <button class="btn-add" id="btn-add-chore" onclick="showAddChore()">+ הוסף מטלה</button>
-    <div class="chore-filter-bar">
-      <input type="text" id="choreSearch" placeholder="🔍 חיפוש שם מטלה..." oninput="renderChoreTable()">
-      <select id="choreFilterLoc" onchange="renderChoreTable()">
-        <option value="">כל המיקומים</option>
-      </select>
-      <select id="choreFilterEnabled" onchange="renderChoreTable()">
-        <option value="">הכל</option>
-        <option value="1">פעיל בלבד</option>
-        <option value="0">מושבת בלבד</option>
-      </select>
-      <span class="filter-count" id="choreCount"></span>
+    <div class="par-action-row">
+      <button class="btn-add" id="btn-add-chore" onclick="showAddChore()">+ הוסף מטלה</button>
+      <button class="btn-mishna-cfg" id="btn-mishna-cfg" onclick="showMishnaConfig()">📖 לימוד משניות</button>
     </div>
-    <div class="mgr-table-wrap">
-    <table class="mgr-table">
-      <thead><tr>
-        <th class="no-sort">פעיל</th>
-        <th class="no-sort"></th>
-        <th onclick="choreSortBy('title',this)">שם</th>
-        <th onclick="choreSortBy('location',this)">מיקום</th>
-        <th onclick="choreSortBy('points',this)">נקודות</th>
-        <th onclick="choreSortBy('duration_minutes',this)">משך</th>
-        <th onclick="choreSortBy('min_age',this)">גיל</th>
-        <th onclick="choreSortBy('max_takers',this)">מקס.</th>
-        <th class="no-sort">פעולות</th>
-      </tr></thead>
-      <tbody id="choreTable"></tbody>
-    </table></div>
+    <div id="chorePanel">
+      <div class="chore-filter-bar">
+        <input type="text" id="choreSearch" placeholder="🔍 חיפוש שם מטלה..." oninput="renderChoreTable()">
+        <select id="choreFilterLoc" onchange="renderChoreTable()">
+          <option value="">כל המיקומים</option>
+        </select>
+        <select id="choreFilterEnabled" onchange="renderChoreTable()">
+          <option value="">הכל</option>
+          <option value="1">פעיל בלבד</option>
+          <option value="0">מושבת בלבד</option>
+        </select>
+        <span class="filter-count" id="choreCount"></span>
+      </div>
+      <div class="mgr-table-wrap">
+      <table class="mgr-table">
+        <thead><tr>
+          <th class="no-sort">פעיל</th>
+          <th class="no-sort"></th>
+          <th onclick="choreSortBy('title',this)">שם</th>
+          <th onclick="choreSortBy('location',this)">מיקום</th>
+          <th onclick="choreSortBy('points',this)">נקודות</th>
+          <th onclick="choreSortBy('duration_minutes',this)">משך</th>
+          <th onclick="choreSortBy('min_age',this)">גיל</th>
+          <th onclick="choreSortBy('max_takers',this)">מקס.</th>
+          <th class="no-sort">פעולות</th>
+        </tr></thead>
+        <tbody id="choreTable"></tbody>
+      </table></div>
+    </div>
+    <div id="mishnaSettingsPanel" style="display:none">
+      <div id="mishnaSettingsContent"></div>
+    </div>
   </div>
   <div id="pt-rewards" style="display:none">
     <button class="btn-add" id="btn-add-reward" onclick="showAddReward()">+ הוסף פרס</button>
@@ -204,16 +216,6 @@
       <tbody id="rewardTable"></tbody>
     </table></div>
   </div>
-  <!-- ══ MISHNA TAB ══ -->
-  <div id="pt-mishna" style="display:none">
-    <div class="mishna-par-header">
-      <button class="btn-add" onclick="showAddMishnaTask()">+ הוסף משימת משניות</button>
-    </div>
-    <div id="mishnaTasksList"></div>
-    <div style="font-weight:800;font-size:15px;margin:18px 0 9px">⏳ ממתין לאישור משניות</div>
-    <div id="mishnaPendingList"></div>
-  </div>
-
   <div id="pt-data" style="display:none">
     <div style="display:flex;flex-direction:column;gap:11px;max-width:360px">
       <button class="btn-primary" onclick="exportData()" style="width:auto;padding:11px 22px">💾 ייצוא נתונים (גיבוי)</button>
@@ -441,7 +443,7 @@
       <div class="pts-custom">
         <div class="fg">
           <label>כמות נקודות</label>
-          <input type="number" id="ptsAmount" min="1" placeholder="0" oninput="updatePtsPreview()" style="font-size:20px;font-weight:800;text-align:center">
+          <input type="number" id="ptsAmount" placeholder="0" oninput="updatePtsPreview()" style="font-size:20px;font-weight:800;text-align:center">
         </div>
         <div>
           <label style="display:block;font-size:14px;font-weight:700;margin-bottom:6px;color:var(--muted)">כיוון</label>

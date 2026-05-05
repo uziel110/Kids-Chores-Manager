@@ -631,6 +631,7 @@ function parTab(name, btn) {
   if (name==='children')loadChildTable();
   if (name==='chores')  loadChoreTable();
   if (name==='rewards') loadRewardTable();
+  if (name==='log')     loadRunsLog();
 }
 
 async function loadApprovals() {
@@ -681,10 +682,17 @@ async function loadApprovals() {
     : '<div class="empty"><div class="empty-ico">🎁</div><p>אין פרסים לאישור</p></div>';
 }
 
+const _approvingRuns = new Set();
 async function approveRun(id) {
-  await api(`/api/runs/${id}/approve`,'POST');
-  confetti(); toast('✅ מטלה אושרה! נקודות נוספו 🌟','ok');
-  await loadApprovals(); await refreshHome();
+  if (_approvingRuns.has(id)) return;
+  _approvingRuns.add(id);
+  try {
+    await api(`/api/runs/${id}/approve`,'POST');
+    confetti(); toast('✅ מטלה אושרה! נקודות נוספו 🌟','ok');
+    await loadApprovals(); await refreshHome();
+  } finally {
+    _approvingRuns.delete(id);
+  }
 }
 async function rejectRun(id) {
   await api(`/api/runs/${id}/reject`,'POST');
@@ -694,6 +702,39 @@ async function parentRelease(id) {
   await api(`/api/runs/${id}/release`,'POST');
   toast('מטלה שוחררה','ok'); await loadApprovals();
 }
+async function loadRunsLog() {
+  const runs = await api('/api/runs/log');
+  const el   = document.getElementById('runsLogList');
+  if (!runs.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-ico">📋</div><p>אין מטלות שבוצעו עדיין</p></div>';
+    return;
+  }
+  el.innerHTML = runs.map(r => {
+    const del    = r.deleted;
+    const d      = new Date(r.finished_at || r.started_at);
+    const dt     = `${d.getDate()}/${d.getMonth()+1} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const child  = r.child || {};
+    const chore  = r.chore || {};
+    const av     = child.photo
+      ? `<img src="${child.photo}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;">`
+      : `<span style="font-size:18px">${child.avatar||'⭐'}</span>`;
+    const style  = del ? 'text-decoration:line-through;opacity:0.5' : '';
+    const btnLbl = del ? '↩ שחזר' : '🗑 מחק';
+    return `<div class="appr-card" style="${del?'opacity:0.55':''}">
+      <div style="font-size:26px">${chore.icon||'⭐'}</div>
+      <div class="appr-info">
+        <div class="appr-name" style="${style}">${av} ${child.name||''}</div>
+        <div class="appr-sub" style="${style}">${chore.title||''} • ⭐ ${chore.points||0} • ${dt}</div>
+      </div>
+      <button class="btn-rej" onclick="deleteRunLog('${r.id}')">${btnLbl}</button>
+    </div>`;
+  }).join('');
+}
+async function deleteRunLog(id) {
+  await api(`/api/runs/${id}/soft-delete`, 'POST');
+  await loadRunsLog();
+}
+
 async function approveClaim(id) {
   await api(`/api/rewards/claims/${id}/approve`,'POST');
   toast('🎁 פרס אושר!','ok'); await loadApprovals(); await refreshHome();
@@ -812,10 +853,10 @@ function setPtsSign(s) {
 }
 
 function updatePtsPreview() {
-  const amt = parseInt(document.getElementById('ptsAmount').value) || 0;
+  const raw = parseInt(document.getElementById('ptsAmount').value) || 0;
   const el  = document.getElementById('ptsPreview');
-  if (!amt) { el.textContent = 'בחר כמות נקודות'; el.className='pts-preview'; return; }
-  const delta    = _ptsSign * amt;
+  if (!raw) { el.textContent = 'בחר כמות נקודות'; el.className='pts-preview'; return; }
+  const delta    = raw < 0 ? raw : _ptsSign * raw;
   const newTotal = Math.max(0, _ptsCurrent + delta);
   const arrow    = delta > 0 ? '⬆️' : '⬇️';
   el.innerHTML   = `${arrow} תהיה: <span>${newTotal} נקודות</span> (${delta>0?'+':''}${delta})`;
@@ -833,9 +874,9 @@ async function applyQuickDelta(delta) {
 }
 
 async function doAdjustPoints() {
-  const amt = parseInt(document.getElementById('ptsAmount').value);
-  if (!amt || amt <= 0) { toast('הכנס כמות נקודות חיובית','err'); return; }
-  const delta  = _ptsSign * amt;
+  const raw = parseInt(document.getElementById('ptsAmount').value);
+  if (!raw) { toast('הכנס כמות נקודות','err'); return; }
+  const delta  = raw < 0 ? raw : _ptsSign * raw;
   const reason = document.getElementById('ptsReason').value.trim() || (
     delta > 0 ? `הוספה ידנית (${delta}+)` : `קיזוז ידני (${delta})`
   );

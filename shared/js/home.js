@@ -19,7 +19,14 @@ async function renderChildren() {
   _allChildren = kids;
   const el = document.getElementById('childrenGrid');
   if (!kids.length) {
-    el.innerHTML = '<div class="empty"><div class="empty-ico">👶</div><p>הוסף ילדים מפאנל ההורים</p></div>';
+    el.innerHTML = `
+      <div class="child-card child-card-placeholder" onclick="showParentLogin()">
+        <div class="child-av-wrap" style="border-color:var(--border)">
+          <span class="child-av-emoji" style="font-size:32px;opacity:.4">👤</span>
+        </div>
+        <div class="child-name" style="color:var(--muted)">הוסף ילד</div>
+        <div class="child-pts" style="color:var(--muted)">פאנל הורים ←</div>
+      </div>`;
     return;
   }
   el.innerHTML = kids.map(k => `

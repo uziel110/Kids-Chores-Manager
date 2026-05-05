@@ -88,6 +88,27 @@ def chore_time_status(ch: dict):
             return False, f"כל {interval} שבועות", ""
     return True, "", window_end_iso
 
+def _expire_stale_runs(data: dict) -> bool:
+    """Auto-expire in_progress runs whose deadline has passed. Returns True if anything changed."""
+    now = datetime.now()
+    changed = False
+    for r in data["chore_runs"]:
+        if r["status"] != "in_progress":
+            continue
+        deadline_str = r.get("deadline")
+        if not deadline_str:
+            continue
+        try:
+            if now > datetime.fromisoformat(deadline_str):
+                r["status"] = "expired"
+                r["finished_at"] = deadline_str
+                changed = True
+        except:
+            pass
+    if changed:
+        save_data(data)
+    return changed
+
 def chore_taken_today(ch: dict, all_runs: list, child_id: str = None) -> bool:
     if ch.get("repeat_type") == "once":
         return False
@@ -324,6 +345,7 @@ async def get_chores():
 @app.get("/api/chores/for/{child_id}")
 async def chores_for_child(child_id: str):
     data = load_data()
+    _expire_stale_runs(data)
     child = next((migrate_child(c) for c in data["children"] if c["id"] == child_id), None)
     if not child:
         raise HTTPException(404, "Child not found")
@@ -454,6 +476,7 @@ async def del_chore(chid: str):
 @app.get("/api/runs/active")
 async def active_runs():
     data = load_data()
+    _expire_stale_runs(data)
     active = [r for r in data["chore_runs"] if r["status"] in ("in_progress", "waiting_approval")]
     cm  = {c["id"]: migrate_child(c)  for c in data["children"]}
     chm = {ch["id"]: migrate_chore(ch) for ch in data["chores"]}
@@ -462,6 +485,7 @@ async def active_runs():
 @app.get("/api/runs/for-child/{child_id}")
 async def runs_for_child(child_id: str):
     data = load_data()
+    _expire_stale_runs(data)
     runs = [r for r in data["chore_runs"]
             if r["child_id"] == child_id and r["status"] in ("in_progress", "waiting_approval")]
     cm  = {c["id"]: migrate_child(c)  for c in data["children"]}
@@ -542,13 +566,29 @@ async def release_run(rid: str, payload: dict = {}):
             return r
     raise HTTPException(404, "Not found")
 
+@app.get("/api/runs/expired-recent")
+async def expired_recent_runs():
+    data = load_data()
+    _expire_stale_runs(data)
+    today = date.today().isoformat()
+    expired = [r for r in data["chore_runs"]
+               if r["status"] == "expired"
+               and (r.get("finished_at") or r.get("started_at") or "")[:10] == today]
+    cm  = {c["id"]: migrate_child(c)  for c in data["children"]}
+    chm = {ch["id"]: migrate_chore(ch) for ch in data["chores"]}
+    return enrich(expired, cm, chm)
+
 @app.post("/api/runs/{rid}/approve")
-async def approve_run(rid: str):
+async def approve_run(rid: str, payload: dict = {}):
     data = load_data()
     for r in data["chore_runs"]:
         if r["id"] == rid:
+            if r.get("status") == "done":
+                return r  # idempotent — already approved
+            rating = max(1, min(5, int(payload.get("rating", 5))))
             r["status"] = "done"
             r["approved"] = True
+            r["rating"] = rating
             ch = next((c for c in data["chores"] if c["id"] == r["chore_id"]), None)
             if ch:
                 try:
@@ -557,18 +597,20 @@ async def approve_run(rid: str):
                     mins = max(1, int((finished - started).total_seconds() / 60))
                 except:
                     mins = 0
+                pts = max(1, round(ch["points"] * rating / 5))
                 for child in data["children"]:
                     if child["id"] == r["child_id"]:
-                        pts = ch["points"]
                         child["points"]             = child.get("points", 0) + pts
                         child["weekly_points"]      = child.get("weekly_points", 0) + pts
                         child["total_points"]       = child.get("total_points", 0) + pts
                         child["total_chores"]       = child.get("total_chores", 0) + 1
                         child["total_time_minutes"] = child.get("total_time_minutes", 0) + mins
                         child["weekly_chores"]      = child.get("weekly_chores", 0) + 1
+                        stars = "⭐" * rating
+                        reason = f"מטלה: {ch['title']} {stars} ({pts}/{ch['points']})"
                         data["points_history"].append({
                             "id": gen_id(), "child_id": r["child_id"],
-                            "points": pts, "reason": f"מטלה: {ch['title']}",
+                            "points": pts, "reason": reason,
                             "date": now_str(), "minutes": mins,
                         })
                         break
@@ -582,6 +624,27 @@ async def reject_run(rid: str):
     for r in data["chore_runs"]:
         if r["id"] == rid:
             r["status"] = "rejected"
+            save_data(data)
+            return r
+    raise HTTPException(404, "Not found")
+
+# ── runs log ─────────────────────────────────────────────────────────────
+
+@app.get("/api/runs/log")
+async def runs_log():
+    data = load_data()
+    done = [r for r in data["chore_runs"] if r.get("status") == "done"]
+    done.sort(key=lambda r: r.get("finished_at") or r.get("started_at") or "", reverse=True)
+    cm  = {c["id"]: migrate_child(c)  for c in data["children"]}
+    chm = {ch["id"]: migrate_chore(ch) for ch in data["chores"]}
+    return enrich(done, cm, chm)
+
+@app.post("/api/runs/{rid}/soft-delete")
+async def soft_delete_run(rid: str):
+    data = load_data()
+    for r in data["chore_runs"]:
+        if r["id"] == rid:
+            r["deleted"] = not r.get("deleted", False)
             save_data(data)
             return r
     raise HTTPException(404, "Not found")
@@ -903,6 +966,18 @@ async def add_mishna_task(m: MishnaTaskModel):
     data["mishna_tasks"].append(task)
     save_data(data)
     return task
+
+@app.put("/api/mishna/tasks/{tid}")
+async def update_mishna_task(tid: str, m: MishnaTaskModel):
+    data = load_data()
+    _migrate_mishna(data)
+    for t in data["mishna_tasks"]:
+        if t["id"] == tid:
+            t["points_per_mishna"] = m.points_per_mishna
+            t["title"] = m.title
+            save_data(data)
+            return t
+    raise HTTPException(404, "Not found")
 
 @app.delete("/api/mishna/tasks/{tid}")
 async def del_mishna_task(tid: str):

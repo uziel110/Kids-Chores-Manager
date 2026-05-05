@@ -20,6 +20,18 @@ async function openChores(childId) {
     </div>`;
 
   showScreen('chores');
+
+  // Hide mishna tab immediately; reveal only if child has a task
+  const mishnaTabBtn = document.getElementById('cmt-mishna');
+  const choresTabBtn = document.getElementById('cmt-chores');
+  if (mishnaTabBtn) mishnaTabBtn.style.display = 'none';
+  if (choresTabBtn) { choresTabBtn.classList.add('active'); }
+  document.getElementById('childChoresMode').style.display = '';
+  document.getElementById('childMishnaMode').style.display = 'none';
+  api(`/api/mishna/tasks/for-child/${childId}`)
+    .then(tasks => { if (mishnaTabBtn && tasks.length) mishnaTabBtn.style.display = ''; })
+    .catch(() => {});
+
   await Promise.all([loadChildActiveRuns(childId), loadChildTodayDone(childId), loadChores(childId, 'הכל')]);
 }
 

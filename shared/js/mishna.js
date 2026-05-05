@@ -193,11 +193,13 @@ function _renderMyMishnas(items) {
     const cards = group
       .sort((a, b) => a.mishna_num - b.mishna_num)
       .map(i => {
-        const canDone = i.status === 'claimed' || i.status === 'needs_review';
+        const canDone    = i.status === 'claimed' || i.status === 'needs_review';
+        const canRelease = i.status === 'claimed';
         return `<div class="ms-item-card ${_statusClass(i.status)}">
           <div class="ms-item-ref">משנה ${heNum(i.mishna_num)}</div>
           <div class="ms-item-status">${_statusLabel(i.status)}</div>
-          ${canDone ? `<button class="ms-done-btn" onclick="msMarkDone('${i.id}')">✋ למדתי!</button>` : ''}
+          ${canDone    ? `<button class="ms-done-btn" onclick="msMarkDone('${i.id}')">✋ למדתי!</button>` : ''}
+          ${canRelease ? `<button class="ms-release-btn" onclick="msReleaseItem('${i.id}')">↩ שחרר</button>` : ''}
         </div>`;
       }).join('');
     return `<div class="ms-group">
@@ -278,6 +280,19 @@ async function msMarkDone(itemId) {
     const idx = MS.childItems.findIndex(i => i.id === itemId);
     if (idx >= 0) MS.childItems[idx] = { ...MS.childItems[idx], ...updated };
     toast('⏳ נשלח להורה לאישור!', 'ok');
+    renderChildMishna();
+  } catch (e) { toast(e.message || 'שגיאה', 'err'); }
+}
+
+async function msReleaseItem(itemId) {
+  if (!confirm('לשחרר משנה זו? תוכל לקחת אותה שוב מאוחר יותר.')) return;
+  try {
+    await api(`/api/mishna/items/${itemId}`, 'DELETE');
+    MS.childItems = MS.childItems.filter(i => i.id !== itemId);
+    MS.takenKeys = new Set(
+      MS.childItems.map(i => _mishnaKey(i.seder, i.masechet, i.perek_num, i.mishna_num))
+    );
+    toast('↩ המשנה שוחררה', 'ok');
     renderChildMishna();
   } catch (e) { toast(e.message || 'שגיאה', 'err'); }
 }

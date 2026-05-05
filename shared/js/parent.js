@@ -31,9 +31,8 @@ function parTab(name, btn) {
   document.getElementById('pt-' + name).style.display = 'block';
   if (name === 'appr')     loadApprovals();
   if (name === 'children') loadChildTable();
-  if (name === 'chores')   loadChoreTable();
+  if (name === 'chores')   { loadChoreTable(); _resetChorePanel(); }
   if (name === 'rewards')  loadRewardTable();
-  if (name === 'mishna')   loadMishnaTab();
 }
 
 /* ── Approvals ── */
@@ -60,11 +59,11 @@ async function loadApprovals() {
         <div style="font-size:26px">${r.chore?.icon || '⭐'}</div>
         <div class="appr-info">
           <div class="appr-name">${r.child?.avatar || ''} ${r.child?.name || ''}</div>
-          <div class="appr-sub">${r.chore?.title || ''} • ⭐ ${r.chore?.points || 0}</div>
+          <div class="appr-sub">${r.chore?.title || ''} • ⭐ ${r.chore?.points || 0} נק'</div>
           ${_runTimingHtml(r)}
         </div>
         <div class="appr-btns">
-          <button class="btn-appr" onclick="approveRun('${r.id}')">✔ אשר</button>
+          <button class="btn-appr" onclick="showRunStars('${r.id}',this)">⭐ ציון ואישור</button>
           <button class="btn-rej"  onclick="rejectRun('${r.id}')">✖ דחה</button>
         </div>
       </div>`).join('')
@@ -101,9 +100,56 @@ async function loadApprovals() {
     : '<div class="empty"><div class="empty-ico">🎁</div><p>אין פרסים לאישור</p></div>';
 
   await loadMishnaPendingInApprovals();
+  await loadExpiredRuns();
 }
 
-async function approveRun(id)  { await api(`/api/runs/${id}/approve`,'POST'); confetti(); toast('✅ מטלה אושרה! נקודות נוספו 🌟','ok'); await loadApprovals(); await refreshHome(); }
+async function loadExpiredRuns() {
+  const el = document.getElementById('expiredRuns');
+  if (!el) return;
+  try {
+    const runs = await api('/api/runs/expired-recent');
+    if (!runs.length) {
+      el.innerHTML = '<div class="empty"><div class="empty-ico">💨</div><p>אין מטלות שפגו היום</p></div>';
+      return;
+    }
+    el.innerHTML = runs.map(r => `
+      <div class="appr-card expired-card">
+        <div style="font-size:26px;opacity:.5">${r.chore?.icon || '⭐'}</div>
+        <div class="appr-info">
+          <div class="appr-name">${r.child?.avatar || ''} ${r.child?.name || ''}</div>
+          <div class="appr-sub">${r.chore?.title || ''} • <span style="color:var(--red)">פג תוקף</span></div>
+          <div style="font-size:11px;color:var(--muted)">נלקחה ${new Date(r.started_at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})} • הזמן הוקצב: ${r.chore?.duration_minutes || 30} דק'</div>
+        </div>
+        <div style="font-size:20px;color:var(--muted)">💨</div>
+      </div>`).join('');
+  } catch { el.innerHTML = ''; }
+}
+
+function showRunStars(runId, btn) {
+  const btns = btn.closest('.appr-btns');
+  btns.innerHTML = `
+    <div class="star-picker-wrap">
+      <div class="star-picker-label">ציון לביצוע:</div>
+      <div class="star-picker">
+        ${[1,2,3,4,5].map(s => `<button class="star-pick-btn" onclick="approveRunWithRating('${runId}',${s})" title="${s} כוכבים — ${Math.round(s/5*100)}%">
+          ${'⭐'.repeat(s)}<span class="star-pct">${Math.round(s/5*100)}%</span>
+        </button>`).join('')}
+      </div>
+    </div>`;
+}
+
+async function approveRunWithRating(id, rating) {
+  await api(`/api/runs/${id}/approve`, 'POST', { rating });
+  confetti();
+  toast(`✅ מטלה אושרה ${'⭐'.repeat(rating)}! נקודות נוספו 🌟`, 'ok');
+  await loadApprovals(); await refreshHome();
+}
+
+async function approveRun(id, rating = 5) {
+  await api(`/api/runs/${id}/approve`, 'POST', { rating });
+  confetti(); toast('✅ מטלה אושרה! נקודות נוספו 🌟','ok');
+  await loadApprovals(); await refreshHome();
+}
 async function rejectRun(id)   { await api(`/api/runs/${id}/reject`,'POST');  toast('❌ מטלה נדחתה','err'); await loadApprovals(); }
 async function parentRelease(id){ await api(`/api/runs/${id}/release`,'POST'); toast('מטלה שוחררה','ok'); await loadApprovals(); }
 async function approveClaim(id){ await api(`/api/rewards/claims/${id}/approve`,'POST'); toast('🎁 פרס אושר!','ok'); await loadApprovals(); await refreshHome(); }
@@ -757,4 +803,112 @@ function openParentGuideTab(tabName) {
   if (!S.parentAuthed) return;
   const tabBtn = document.querySelector(`.par-tab[onclick="parTab('${tabName}',this)"]`);
   if (tabBtn) parTab(tabName, tabBtn);
+}
+
+/* ════════════════════════════════════════
+   MISHNA CONFIG PANEL (in chores tab)
+════════════════════════════════════════ */
+function _resetChorePanel() { hideMishnaConfig(); }
+
+function showMishnaConfig() {
+  const addBtn    = document.getElementById('btn-add-chore');
+  const cfgBtn    = document.getElementById('btn-mishna-cfg');
+  const panel     = document.getElementById('chorePanel');
+  const mPanel    = document.getElementById('mishnaSettingsPanel');
+  if (addBtn)  addBtn.style.display  = 'none';
+  if (cfgBtn)  { cfgBtn.textContent = '← חזרה למטלות'; cfgBtn.onclick = hideMishnaConfig; }
+  if (panel)   panel.style.display  = 'none';
+  if (mPanel)  mPanel.style.display = '';
+  loadMishnaSettingsPanel();
+}
+
+function hideMishnaConfig() {
+  const addBtn = document.getElementById('btn-add-chore');
+  const cfgBtn = document.getElementById('btn-mishna-cfg');
+  const panel  = document.getElementById('chorePanel');
+  const mPanel = document.getElementById('mishnaSettingsPanel');
+  if (addBtn)  addBtn.style.display  = '';
+  if (cfgBtn)  { cfgBtn.textContent = '📖 לימוד משניות'; cfgBtn.onclick = showMishnaConfig; }
+  if (panel)   panel.style.display  = '';
+  if (mPanel)  mPanel.style.display = 'none';
+}
+
+async function loadMishnaSettingsPanel() {
+  const el = document.getElementById('mishnaSettingsContent');
+  el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">טוען...</div>';
+  const [children, tasks] = await Promise.all([api('/api/children'), api('/api/mishna/tasks')]);
+  const taskByChild = {};
+  for (const t of tasks) taskByChild[t.child_id] = t;
+
+  if (!children.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-ico">👦</div><p>אין ילדים רשומים</p></div>';
+    return;
+  }
+
+  el.innerHTML = `
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px">
+      הגדר עבור אילו ילדים פועל לימוד משניות וכמה נקודות מקבלים לכל משנה שתאושר.
+    </div>
+    <div class="mishna-settings-list">
+      ${children.map(c => {
+        const task    = taskByChild[c.id];
+        const enabled = !!task;
+        const pts     = task ? task.points_per_mishna : 10;
+        const tid     = task ? task.id : '';
+        const av      = c.photo
+          ? `<img src="${c.photo}" style="width:32px;height:32px;border-radius:50%;object-fit:cover">`
+          : `<span style="font-size:24px">${c.avatar || '⭐'}</span>`;
+        return `
+          <div class="mishna-settings-row" id="msr-${c.id}">
+            <div class="msr-child">${av} <span class="msr-name">${c.name}</span></div>
+            <label class="toggle-wrap" title="${enabled ? 'כבה' : 'הפעל'}">
+              <span class="toggle-switch">
+                <input type="checkbox" ${enabled ? 'checked' : ''}
+                  onchange="toggleMishnaChild('${c.id}','${tid}',this)">
+                <span class="toggle-slider"></span>
+              </span>
+            </label>
+            <div class="msr-pts-row" id="mspts-${c.id}" style="${enabled ? '' : 'opacity:.4;pointer-events:none'}">
+              <span style="font-size:13px;color:var(--muted)">נקודות למשנה:</span>
+              <input type="number" id="msp-${c.id}" min="1" value="${pts}"
+                style="width:64px;padding:5px 7px;border-radius:9px;border:2px solid var(--border);
+                       font-family:var(--font);font-size:14px;font-weight:700;text-align:center;background:var(--bg)">
+              <button class="btn-sm ed" onclick="saveMishnaPts('${c.id}','${tid}')">שמור</button>
+            </div>
+          </div>`;
+      }).join('')}
+    </div>`;
+}
+
+async function toggleMishnaChild(childId, taskId, chk) {
+  if (chk.checked) {
+    try {
+      await api('/api/mishna/tasks', 'POST', {
+        child_id: childId, title: 'לימוד משניות בעל פה', points_per_mishna: 10,
+      });
+      toast('📖 לימוד משניות הופעל!', 'ok');
+      await loadMishnaSettingsPanel();
+    } catch (e) { chk.checked = false; toast(e.message || 'שגיאה', 'err'); }
+  } else {
+    if (!taskId) { await loadMishnaSettingsPanel(); return; }
+    if (!confirm('לכבות לימוד משניות לילד זה? כל המשניות שטרם אושרו יימחקו.')) {
+      chk.checked = true; return;
+    }
+    try {
+      await api(`/api/mishna/tasks/${taskId}`, 'DELETE');
+      toast('⏸ לימוד משניות כובה', 'ok');
+      await loadMishnaSettingsPanel();
+    } catch (e) { toast(e.message || 'שגיאה', 'err'); }
+  }
+}
+
+async function saveMishnaPts(childId, taskId) {
+  if (!taskId) { toast('הפעל קודם את הילד', 'err'); return; }
+  const pts = parseInt(document.getElementById(`msp-${childId}`)?.value) || 10;
+  try {
+    await api(`/api/mishna/tasks/${taskId}`, 'PUT', {
+      child_id: childId, title: 'לימוד משניות בעל פה', points_per_mishna: pts,
+    });
+    toast(`✅ עודכן — ${pts} נקודות למשנה`, 'ok');
+  } catch (e) { toast(e.message || 'שגיאה', 'err'); }
 }
